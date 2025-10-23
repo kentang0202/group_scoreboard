@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>活動名稱 - 分組計分</title>
+<style>
+  :root{
+    --bg: #111;
+    --card: #222;
+    --text: #fff;
+    --accent: #ffc107;
+    --muted-border: rgba(255,255,255,0.12);
+    --inc: #28a745;
+    --dec: #dc3545;
+  }
+  .light-theme{
+    --bg: #ffffff;
+    --card: #f7f7f7;
+    --text: #111;
+    --accent: #ffb600;
+    --muted-border: rgba(0,0,0,0.08);
+    --inc: #1f8a3e;
+    --dec: #c42b2b;
+  }
+  body { font-family: Arial, sans-serif; background: var(--bg); color: var(--text); margin:0; padding:20px; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; min-height:100vh; }
+  h1 { font-size: 48px; margin: 20px 0; text-align:center; cursor: text; }
+  .teams-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; width: 100%; }
+  .team { background: var(--card); border-radius: 15px; padding: 20px; width: 250px; display: flex; flex-direction: column; align-items: center; position: relative; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+  .team-name { font-size: 36px; font-weight: bold; margin-bottom: 20px; border: none; background: transparent; color: var(--text); text-align:center; width: 100%; }
+  .team-name:focus { outline: 2px solid var(--inc); border-radius: 5px; }
+  .score-frame { font-size: 64px; font-weight: bold; width: 120px; height: 120px; display:flex; align-items:center; justify-content:center; border: 5px solid var(--text); border-radius: 15px; margin-bottom: 20px; cursor: pointer; }
+  .delete-btn { position: absolute; top: 10px; right: 10px; background: #ff3860; color: #fff; border:none; border-radius:5px; padding: 4px 8px; font-size:16px; cursor:pointer; display:none; }
+  .controls { display:flex; gap:10px; }
+  .controls button { font-size: 28px; padding: 6px 12px; border:none; border-radius:10px; cursor:pointer; }
+  .inc { background: var(--inc); color: #fff; }
+  .dec { background: var(--dec); color: #fff; }
+  .top-controls { margin: 20px; display:flex; gap: 12px; flex-wrap: wrap; }
+  .top-controls button { font-size: 14px; padding: 5px 9px; background: var(--accent); color: #111; border:none; border-radius:8px; cursor:pointer; }
+  .theme-btn { background: transparent; border: 1px solid var(--muted-border); color: var(--text); padding:5px 9px; border-radius:8px; }
+  input.team-name { background: transparent; color: var(--text); }
+</style>
+</head>
+<body>
+<div class="top-controls">
+  <button class="reset-btn" onclick="resetAll()">全部重置</button>
+  <button class="add-btn" onclick="addTeam()">新增隊伍</button>
+  <button class="toggle-delete-btn" onclick="toggleDeleteMode()">刪除隊伍</button>
+  <button class="zero-btn" onclick="zeroScores()">分數全歸零</button>
+  <button class="fullscreen-btn" onclick="toggleFullscreen()">全螢幕</button>
+  <button class="theme-btn" onclick="toggleTheme()">更換風格</button>
+</div>
+<h1 id="pageTitle" contenteditable="true" onblur="saveTitle()">活動名稱，點我編輯</h1>
+<div class="teams-container" id="teams"></div>
+
+<script>
+let teams = [ {name: '第1組', score:0}, {name: '第2組', score:0} ];
+let deleteMode = false;
+
+function save(){ localStorage.setItem('eventScoreRecord', JSON.stringify(teams)); }
+function load(){ const saved = localStorage.getItem('eventScoreRecord'); if(saved) teams = JSON.parse(saved); }
+
+function toggleDeleteMode(){
+  deleteMode = !deleteMode;
+  const btn = document.querySelector('.toggle-delete-btn');
+  btn.textContent = deleteMode ? '隱藏刪除鍵' : '刪除隊伍';
+  render();
+}
+
+function toggleFullscreen(){
+  const btn = document.querySelector('.fullscreen-btn');
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+    btn.textContent = '退出全螢幕';
+  } else {
+    document.exitFullscreen();
+    btn.textContent = '全螢幕';
+  }
+}
+
+document.addEventListener('fullscreenchange', () => {
+  const btn = document.querySelector('.fullscreen-btn');
+  if (!document.fullscreenElement) {
+    btn.textContent = '全螢幕';
+  } else {
+    btn.textContent = '退出全螢幕';
+  }
+});
+
+function toggleTheme(){
+  const root = document.documentElement;
+  const isLight = root.classList.toggle('light-theme');
+  localStorage.setItem('eventTheme', isLight ? 'light' : 'dark');
+}
+
+function applySavedTheme(){
+  const saved = localStorage.getItem('eventTheme');
+  if(saved === 'light'){
+    document.documentElement.classList.add('light-theme');
+  } else {
+    document.documentElement.classList.remove('light-theme');
+  }
+}
+
+function render(){
+  const container = document.getElementById('teams');
+  container.innerHTML = '';
+  teams.forEach((team,index)=>{
+    const div = document.createElement('div');
+    div.className = 'team';
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'delete-btn';
+    deleteBtn.textContent = '刪除';
+    deleteBtn.style.display = deleteMode ? 'block' : 'none';
+    deleteBtn.onclick = () => { if(confirm(`確定要刪除 ${team.name} 嗎？`)){ teams.splice(index,1); render(); save(); } };
+    div.appendChild(deleteBtn);
+
+    const nameInput = document.createElement('input');
+    nameInput.className = 'team-name';
+    nameInput.value = team.name;
+    nameInput.oninput = (e) => { team.name = e.target.value; save(); };
+    div.appendChild(nameInput);
+
+    const scoreDiv = document.createElement('div');
+    scoreDiv.className = 'score-frame';
+    scoreDiv.textContent = team.score;
+    div.appendChild(scoreDiv);
+
+    const controls = document.createElement('div');
+    controls.className = 'controls';
+
+    const decBtn = document.createElement('button');
+    decBtn.className = 'dec';
+    decBtn.textContent = '-';
+    decBtn.onclick = ()=>{ team.score--; render(); save(); };
+    controls.appendChild(decBtn);
+
+    const incBtn = document.createElement('button');
+    incBtn.className = 'inc';
+    incBtn.textContent = '+';
+    incBtn.onclick = ()=>{ team.score++; render(); save(); };
+    controls.appendChild(incBtn);
+
+    div.appendChild(controls);
+    container.appendChild(div);
+  });
+}
+
+function addTeam(){
+  if(teams.length>=20){ alert('最多 20 組'); return; }
+  const n = teams.length+1;
+  teams.push({name:`第${n}組`,score:0});
+  render(); save();
+}
+
+function resetAll(){
+  if(!confirm('確定要全部重置嗎？')) return;
+  teams = [ {name:'第1組',score:0}, {name:'第2組',score:0} ];
+  render(); save();
+}
+
+function zeroScores(){
+  if(!confirm('確定要將所有分數歸零嗎？')) return;
+  teams.forEach(team => team.score = 0);
+  render(); save();
+}
+
+function loadTitle() {
+  const saved = localStorage.getItem('eventTitle');
+  const titleText = saved || '活動名稱，點我編輯';
+  document.getElementById('pageTitle').textContent = titleText;
+  document.title = `${titleText.replace('，點我編輯','')} - 分組計分`;
+}
+function saveTitle() {
+  const title = document.getElementById('pageTitle').textContent.trim();
+  localStorage.setItem('eventTitle', title);
+  document.title = `${title.replace('，點我編輯','')} - 分組計分`;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  applySavedTheme();
+  loadTitle();
+  load();
+  render();
+});
+
+</script>
+</body>
+</html>
